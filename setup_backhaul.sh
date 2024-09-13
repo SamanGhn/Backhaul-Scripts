@@ -58,7 +58,7 @@ if [ "$location" == "y" ]; then
         for ((i=1; i<=num_ports; i++))
         do
             read -p "لطفاً پورت شماره $i را وارد کنید: " port
-            ports_list+=("port=$port")
+            ports_list+=("$port=$port")
         done
 
     elif [ "$method" == "r" ]; then
