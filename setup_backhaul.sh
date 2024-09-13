@@ -54,11 +54,11 @@ if [ "$location" == "y" ]; then
         # ایجاد آرایه برای ذخیره پورت‌ها
         ports_list=()
 
-        # دریافت پورت‌ها از کاربر
+        # دریافت پورت‌ها از کاربر و اضافه کردن به آرایه با دابل کوتیشن
         for ((i=1; i<=num_ports; i++))
         do
             read -p "لطفاً پورت شماره $i را وارد کنید: " port
-            ports_list+=("$port=$port")
+            ports_list+=("\"$port=$port\"")
         done
 
     elif [ "$method" == "r" ]; then
@@ -69,10 +69,10 @@ if [ "$location" == "y" ]; then
         # ایجاد آرایه برای ذخیره پورت‌ها
         ports_list=()
 
-        # تولید پورت‌ها بر اساس رنج
+        # تولید پورت‌ها بر اساس رنج و اضافه کردن به آرایه با دابل کوتیشن
         for ((port=start_port; port<=end_port; port++))
         do
-            ports_list+=("$port=$port")
+            ports_list+=("\"$port=$port\"")
         done
 
     else
