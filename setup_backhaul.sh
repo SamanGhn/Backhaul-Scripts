@@ -118,18 +118,24 @@ EOL
 
 # اگر سرور خارج باشد
 else
-    echo "این سرور خارج است، انجام تنظیمات برای خارج..." 
- 
+    echo "این سرور خارج است، انجام تنظیمات برای خارج..."
+
     # دریافت آیپی ایران از کاربر
     read -p "لطفاً آیپی سرور ایران را وارد کنید: " ip_iran
- 
+
     # دریافت شماره سرور خارجی که ست می‌شود
     read -p "این چندمین سرور خارجی است که روی سرور ایران ست می‌شود؟ " server_index
- 
+
+    # دریافت توکن برای سرور خارج
+    read -p "لطفاً توکن برای سرور خارج شماره $server_index را وارد کنید: " token
+
+    # دریافت مقدار mux_session برای سرور خارج
+    read -p "لطفاً مقدار mux_session برای سرور خارج شماره $server_index را وارد کنید: " mux_session
+
     # ایجاد فایل پیکربندی برای سرور خارج با شماره مشخص (server_index)
     sudo tee /root/backhaul/config_$server_index.toml <<EOL
 [client]
-remote_addr = "$ip_iran:$port" 
+remote_addr = "$ip_iran:$port"
 transport = "tcp"
 token = "$token"
 keepalive_period = 20
