@@ -32,7 +32,7 @@ cd ..
 read -p "آیا این سرور ایران است؟ (y/n): " location 
 
 # دریافت پورت از کاربر
-read -p "لطفاً شماره پورت تونل را وارد کنید: " port 
+read -p "لطفاً شماره پورت تونل را وارد کنید: " portt 
 
 # دریافت توکن از کاربر
 read -p "لطفاً توکن را وارد کنید: " token 
@@ -86,7 +86,7 @@ if [ "$location" == "y" ]; then
     # دستورات برای سرورهای ایران
     sudo tee /root/backhaul/config.toml <<EOL
 [server]
-bind_addr = "0.0.0.0:$port"
+bind_addr = "0.0.0.0:$portt"
 transport = "tcp"
 token = "$token"
 keepalive_period = 20
@@ -109,7 +109,7 @@ else
     # دستورات برای سرورهای خارج
     sudo tee /root/backhaul/config.toml <<EOL
 [client]
-remote_addr = "$ip_iran:$port" 
+remote_addr = "$ip_iran:$portt" 
 transport = "tcp"
 token = "$token"
 keepalive_period = 20
