@@ -29,7 +29,7 @@ if [ "$location" == "y" ]; then
         echo "در حال تنظیم سرور خارج شماره $i..."
 
         # دریافت اطلاعات سرور خارجی از کاربر
-        read -p "شماره پورت تونل برای سرور خارج شماره $i را وارد کنید: " port
+        read -p "شماره پورت تونل برای سرور خارج شماره $i را وارد کنید: " tunnelport
 
         # دریافت توکن برای سرور خارج
         read -p "لطفاً توکن برای سرور خارج شماره $i را وارد کنید: " token
@@ -79,7 +79,7 @@ if [ "$location" == "y" ]; then
         # ایجاد فایل پیکربندی برای سرور ایران با تنظیمات هر سرور خارج
         sudo tee /root/backhaul/config_$i.toml <<EOL
 [server]
-bind_addr = "0.0.0.0:$port"
+bind_addr = "0.0.0.0:$tunnelport"
 transport = "tcp"
 token = "$token"
 keepalive_period = 20
@@ -127,7 +127,7 @@ else
     read -p "این چندمین سرور خارجی است که روی سرور ایران ست می‌شود؟ " server_index
 
     # دریافت پورت از کاربر برای سرور خارج
-    read -p "شماره پورت تونل برای سرور خارج شماره $server_index را وارد کنید: " port
+    read -p "شماره پورت تونل برای سرور خارج شماره $server_index را وارد کنید: " tunnelport
 
     # دریافت توکن برای سرور خارج
     read -p "لطفاً توکن برای سرور خارج شماره $server_index را وارد کنید: " token
@@ -138,7 +138,7 @@ else
     # ایجاد فایل پیکربندی برای سرور خارج با شماره مشخص (server_index)
     sudo tee /root/backhaul/config_$server_index.toml <<EOL
 [client]
-remote_addr = "$ip_iran:$port"
+remote_addr = "$ip_iran:$tunnelport"
 transport = "tcp"
 token = "$token"
 keepalive_period = 20
