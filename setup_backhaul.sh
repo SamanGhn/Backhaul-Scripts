@@ -72,7 +72,7 @@ if [ "$location" == "y" ]; then
         # تولید پورت‌ها بر اساس رنج
         for ((port=start_port; port<=end_port; port++))
         do
-            ports_list+=("port=$port")
+            ports_list+=("$port=$port")
         done
 
     else
