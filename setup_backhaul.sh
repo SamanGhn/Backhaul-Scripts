@@ -1,20 +1,5 @@
 #!/bin/bash
 
-# ایجاد فایل سرویس برای backhaul
-echo "[Unit]
-Description=Backhaul Reverse Tunnel Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/backhaul -c /root/backhaul/config.toml
-Restart=always
-RestartSec=3
-LimitNOFILE=1048576
-
-[Install]
-WantedBy=multi-user.target" | sudo tee /etc/systemd/system/backhaul.service
-
 # دستورات اولیه برای نصب backhaul
 mkdir -p backhaul
 cd backhaul
@@ -100,14 +85,65 @@ $ports_string
 ]
 EOL
 
+    # دریافت تعداد سرورهای خارج
+    read -p "چند سرور خارج دارید؟ " num_servers
+
+    # حلقه برای هر سرور خارج
+    for ((i=1; i<=num_servers; i++))
+    do
+        # دریافت آی‌پی سرور خارج و شماره پورت از کاربر
+        read -p "آی‌پی سرور خارج شماره $i را وارد کنید: " ip_server
+        read -p "شماره پورت برای سرور خارج شماره $i را وارد کنید: " port_server
+
+        # تعیین شماره سرور خارج (شماره‌گذاری در ایران و خارج همسان است)
+        read -p "این سرور خارج چندمین سرور است که روی سرور ایران ست می‌شود؟ " server_index
+
+        # ایجاد فایل پیکربندی برای سرور خارج با شماره مشخص (server_index)
+        sudo tee /root/backhaul/config_$server_index.toml <<EOL
+[client]
+remote_addr = "$ip_server:$port_server"
+transport = "tcp"
+token = "$token"
+keepalive_period = 20
+nodelay = false
+retry_interval = 1
+mux_session = $mux_session
+EOL
+
+        # ایجاد فایل سرویس برای سرور خارج با شماره مشخص (server_index)
+        sudo tee /etc/systemd/system/backhaul_$server_index.service <<EOL
+[Unit]
+Description=Backhaul Reverse Tunnel Service for Server $server_index
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/backhaul -c /root/backhaul/config_$server_index.toml
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+        # فعال‌سازی و راه‌اندازی سرویس برای هر سرور با شماره server_index
+        sudo systemctl daemon-reload
+        sudo systemctl enable backhaul_$server_index.service
+        sudo systemctl start backhaul_$server_index.service
+    done
+
 else
     echo "این سرور خارج است، انجام تنظیمات برای خارج..." 
  
     # دریافت آیپی ایران از کاربر
     read -p "لطفاً آیپی سرور ایران را وارد کنید: " ip_iran
  
-    # دستورات برای سرورهای خارج
-    sudo tee /root/backhaul/config.toml <<EOL
+    # دریافت شماره سرور خارجی که ست می‌شود
+    read -p "این چندمین سرور خارجی است که روی سرور ایران ست می‌شود؟ " server_index
+ 
+    # ایجاد فایل پیکربندی برای سرور خارج با شماره مشخص (server_index)
+    sudo tee /root/backhaul/config_$server_index.toml <<EOL
 [client]
 remote_addr = "$ip_iran:$portt" 
 transport = "tcp"
@@ -117,10 +153,30 @@ nodelay = false
 retry_interval = 1
 mux_session = $mux_session
 EOL
+
+    # ایجاد فایل سرویس برای سرور خارج با شماره مشخص (server_index)
+    sudo tee /etc/systemd/system/backhaul_$server_index.service <<EOL
+[Unit]
+Description=Backhaul Reverse Tunnel Service for Server $server_index
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/backhaul -c /root/backhaul/config_$server_index.toml
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+    # فعال‌سازی و راه‌اندازی سرویس برای این سرور خارج
+    sudo systemctl daemon-reload
+    sudo systemctl enable backhaul_$server_index.service
+    sudo systemctl start backhaul_$server_index.service
 fi
 
 # ادامه دستورات مشترک
 sudo systemctl daemon-reload
-sudo systemctl enable backhaul.service
-sudo systemctl start backhaul.service
 sudo systemctl status backhaul.service
