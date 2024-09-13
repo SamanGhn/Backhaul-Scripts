@@ -38,9 +38,9 @@ if [ "$location" == "y" ]; then
         read -p "Please enter the mux_session value for foreign server $i: " mux_session
 
         # Choose how to input ports (individually or range)
-        read -p "Do you want to enter the ports individually or as a range? (i/r): " method
+        read -p "Do you want to enter the ports manually or as a range? (m/r): " method
 
-        if [ "$method" == "i" ]; then
+        if [ "$method" == "m" ]; then
             # Get the list of ports from the user as a comma-separated string
             read -p "Please enter all the ports as a comma-separated list (e.g., 2020,2021,2027): " port_list_input
 
@@ -71,7 +71,7 @@ if [ "$location" == "y" ]; then
             done
 
         else
-            echo "Invalid input method. Please enter 'i' for individual or 'r' for range."
+            echo "Invalid input method. Please enter 'm' for manually or 'r' for range."
             exit 1
         fi
 
