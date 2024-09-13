@@ -114,6 +114,7 @@ EOL
         sudo systemctl daemon-reload
         sudo systemctl enable backhaul_$i.service
         sudo systemctl start backhaul_$i.service
+        sudo systemctl status backhaul_$i.service
     done
 
 # اگر سرور خارج باشد
@@ -168,8 +169,5 @@ EOL
     sudo systemctl daemon-reload
     sudo systemctl enable backhaul_$server_index.service
     sudo systemctl start backhaul_$server_index.service
+    sudo systemctl status backhaul_$server_index.service
 fi
-
-# ادامه دستورات مشترک
-sudo systemctl daemon-reload
-sudo systemctl status backhaul.service
