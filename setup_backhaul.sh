@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# دستورات اولیه برای نصب backhaul
+# Initial setup for installing backhaul
 mkdir -p backhaul
 cd backhaul
 
@@ -10,73 +10,75 @@ rm backhaul_linux.tar.gz LICENSE README.md
 chmod +x backhaul
 mv backhaul /usr/bin/backhaul
 
-# بازگشت به دایرکتوری قبلی
+# Go back to the previous directory
 cd ..
 
-# دریافت موقعیت سرور از کاربر
-read -p "آیا این سرور ایران است؟ (y/n): " location 
+# Get server location from the user
+read -p "Is this server located in Iran? (y/n): " location 
 
-# اگر سرور ایران باشد
+# If the server is located in Iran
 if [ "$location" == "y" ]; then
-    echo "این سرور ایران است، انجام تنظیمات برای ایران..."
+    echo "This server is located in Iran, applying settings for Iran..."
 
-    # دریافت تعداد سرورهای خارج
-    read -p "چند سرور خارج دارید؟ " num_servers
+    # Get the number of foreign servers
+    read -p "How many foreign servers do you have? " num_servers
 
-    # حلقه برای هر سرور خارج
+    # Loop for each foreign server
     for ((i=1; i<=num_servers; i++))
     do
-        echo "در حال تنظیم سرور خارج شماره $i..."
+        echo "Configuring foreign server number $i..."
 
-        # دریافت اطلاعات سرور خارجی از کاربر
-        read -p "شماره پورت تونل برای سرور خارج شماره $i را وارد کنید: " tunnelport
+        # Get tunnel port for the foreign server
+        read -p "Enter the tunnel port number for foreign server $i: " tunnelport
 
-        # دریافت توکن برای سرور خارج
-        read -p "لطفاً توکن برای سرور خارج شماره $i را وارد کنید: " token
+        # Get token for the foreign server
+        read -p "Please enter the token for foreign server $i: " token
 
-        # دریافت مقدار mux_session برای سرور خارج
-        read -p "لطفاً مقدار mux_session برای سرور خارج شماره $i را وارد کنید: " mux_session
+        # Get mux_session value for the foreign server
+        read -p "Please enter the mux_session value for foreign server $i: " mux_session
 
-        # انتخاب روش وارد کردن پورت‌ها برای این سرور
-        read -p "آیا می‌خواهید پورت‌ها را دونه به دونه وارد کنید یا به صورت رنج (range)? (d/r): " method
+        # Choose how to input ports (individually or range)
+        read -p "Do you want to enter the ports individually or as a range? (i/r): " method
 
-        if [ "$method" == "d" ]; then
-            # دریافت تعداد پورت‌های مورد نظر
-            read -p "چند پورت برای تونل وجود دارد؟ " num_ports
+        if [ "$method" == "i" ]; then
+            # Get the list of ports from the user as a comma-separated string
+            read -p "Please enter all the ports as a comma-separated list (e.g., 2020,2021,2027): " port_list_input
 
-            # ایجاد آرایه برای ذخیره پورت‌ها
+            # Create an array from the comma-separated list
+            IFS=',' read -r -a ports_array <<< "$port_list_input"
+
+            # Initialize an empty array to store formatted ports
             ports_list=()
 
-            # دریافت پورت‌ها از کاربر و اضافه کردن به آرایه با دابل کوتیشن
-            for ((j=1; j<=num_ports; j++))
+            # Loop through the array and format each port
+            for port in "${ports_array[@]}"
             do
-                read -p "لطفاً پورت شماره $j برای سرور خارج شماره $i را وارد کنید: " port_item
-                ports_list+=("\"$port_item=$port_item\"")
+                ports_list+=("\"$port=$port\"")
             done
 
         elif [ "$method" == "r" ]; then
-            # دریافت رنج پورت‌ها از کاربر
-            read -p "لطفاً پورت شروع را وارد کنید: " start_port
-            read -p "لطفاً پورت پایان را وارد کنید: " end_port
+            # Get the port range from the user
+            read -p "Please enter the start port: " start_port
+            read -p "Please enter the end port: " end_port
 
-            # ایجاد آرایه برای ذخیره پورت‌ها
+            # Create an array to store the ports
             ports_list=()
 
-            # تولید پورت‌ها بر اساس رنج و اضافه کردن به آرایه با دابل کوتیشن
+            # Generate ports based on the range and add them to the array with double quotes
             for ((port=start_port; port<=end_port; port++))
             do
                 ports_list+=("\"$port=$port\"")
             done
 
         else
-            echo "روش وارد کردن نامعتبر است. لطفاً 'd' برای دونه به دونه یا 'r' برای رنج وارد کنید."
+            echo "Invalid input method. Please enter 'i' for individual or 'r' for range."
             exit 1
         fi
 
-        # تبدیل آرایه به رشته‌ای با جداکننده‌های مناسب برای فایل پیکربندی
+        # Convert the array to a string with appropriate separators for the config file
         ports_string=$(IFS=,; echo "${ports_list[*]}")
 
-        # ایجاد فایل پیکربندی برای سرور ایران با تنظیمات هر سرور خارج
+        # Create a config file for the Iran server with settings for each foreign server
         sudo tee /root/backhaul/config_$i.toml <<EOL
 [server]
 bind_addr = "0.0.0.0:$tunnelport"
@@ -93,7 +95,7 @@ $ports_string
 ]
 EOL
 
-        # ایجاد فایل سرویس برای سرور خارج با شماره مشخص (i)
+        # Create a service file for the foreign server with a specific number (i)
         sudo tee /etc/systemd/system/backhaul_$i.service <<EOL
 [Unit]
 Description=Backhaul Reverse Tunnel Service for Server $i
@@ -110,33 +112,33 @@ LimitNOFILE=1048576
 WantedBy=multi-user.target
 EOL
 
-        # فعال‌سازی و راه‌اندازی سرویس برای هر سرور با شماره i
+        # Reload systemd, enable and start the service
         sudo systemctl daemon-reload
         sudo systemctl enable backhaul_$i.service
         sudo systemctl start backhaul_$i.service
         sudo systemctl status backhaul_$i.service
     done
 
-# اگر سرور خارج باشد
+# If the server is located outside Iran
 else
-    echo "این سرور خارج است، انجام تنظیمات برای خارج..."
+    echo "This server is located outside Iran, applying settings for outside..."
 
-    # دریافت آیپی ایران از کاربر
-    read -p "لطفاً آیپی سرور ایران را وارد کنید: " ip_iran
+    # Get the IP of the Iran server from the user
+    read -p "Please enter the IP address of the Iran server: " ip_iran
 
-    # دریافت شماره سرور خارجی که ست می‌شود
-    read -p "این چندمین سرور خارجی است که روی سرور ایران ست می‌شود؟ " server_index
+    # Get the foreign server index
+    read -p "Which foreign server is this in relation to the Iran server? " server_index
 
-    # دریافت پورت از کاربر برای سرور خارج
-    read -p "شماره پورت تونل برای سرور خارج شماره $server_index را وارد کنید: " tunnelport
+    # Get tunnel port for the foreign server
+    read -p "Enter the tunnel port number for foreign server $server_index: " tunnelport
 
-    # دریافت توکن برای سرور خارج
-    read -p "لطفاً توکن برای سرور خارج شماره $server_index را وارد کنید: " token
+    # Get token for the foreign server
+    read -p "Please enter the token for foreign server $server_index: " token
 
-    # دریافت مقدار mux_session برای سرور خارج
-    read -p "لطفاً مقدار mux_session برای سرور خارج شماره $server_index را وارد کنید: " mux_session
+    # Get mux_session value for the foreign server
+    read -p "Please enter the mux_session value for foreign server $server_index: " mux_session
 
-    # ایجاد فایل پیکربندی برای سرور خارج با شماره مشخص (server_index)
+    # Create a config file for the foreign server with the given index
     sudo tee /root/backhaul/config_$server_index.toml <<EOL
 [client]
 remote_addr = "$ip_iran:$tunnelport"
@@ -148,7 +150,7 @@ retry_interval = 1
 mux_session = $mux_session
 EOL
 
-    # ایجاد فایل سرویس برای سرور خارج با شماره مشخص (server_index)
+    # Create a service file for the foreign server with the given index
     sudo tee /etc/systemd/system/backhaul_$server_index.service <<EOL
 [Unit]
 Description=Backhaul Reverse Tunnel Service for Server $server_index
@@ -165,7 +167,7 @@ LimitNOFILE=1048576
 WantedBy=multi-user.target
 EOL
 
-    # فعال‌سازی و راه‌اندازی سرویس برای این سرور خارج
+    # Reload systemd, enable and start the service
     sudo systemctl daemon-reload
     sudo systemctl enable backhaul_$server_index.service
     sudo systemctl start backhaul_$server_index.service
