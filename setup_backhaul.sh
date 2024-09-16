@@ -256,10 +256,17 @@ add_ports() {
         formatted_ports+=("\"$port=$port\"")
     done
 
-    ports_string=$(IFS=,; echo "${formatted_ports[*]}")
+    # Read the existing ports from the config file
+    existing_ports=$(grep -oP '(?<=ports = \[)[^\]]*' /root/backhaul/config_$server_number.toml)
+    
+    # Remove leading/trailing whitespace and commas from existing_ports
+    existing_ports=$(echo "$existing_ports" | sed 's/^[ ,]*//;s/[ ,]*$//')
 
-    # Add new ports to the existing configuration
-    sed -i "/ports = \[/a $ports_string" /root/backhaul/config_$server_number.toml
+    # Merge existing and new ports
+    all_ports=$(echo "$existing_ports,$(IFS=,; echo "${formatted_ports[*]}")" | sed 's/,,*/,/g')
+
+    # Update the config file with the merged ports
+    sed -i "/ports = \[/c\ports = [ $all_ports ]" /root/backhaul/config_$server_number.toml
     echo "Ports added successfully to server $server_number."
 
     # Reload and restart the service
@@ -274,11 +281,23 @@ remove_ports() {
 
     IFS=',' read -r -a remove_ports_array <<< "$remove_ports"
 
-    # Loop through the ports and remove them from the configuration file
+    # Read the existing ports from the config file
+    existing_ports=$(grep -oP '(?<=ports = \[)[^\]]*' /root/backhaul/config_$server_number.toml)
+
+    # Remove leading/trailing whitespace and commas from existing_ports
+    existing_ports=$(echo "$existing_ports" | sed 's/^[ ,]*//;s/[ ,]*$//')
+
+    # Remove specified ports from the existing ports
     for port in "${remove_ports_array[@]}"; do
-        sed -i "/\"$port=$port\"/d" /root/backhaul/config_$server_number.toml
+        existing_ports=$(echo "$existing_ports" | sed "s/\"$port=$port\"//g")
     done
 
+    # Remove extra commas and spaces
+    existing_ports=$(echo "$existing_ports" | sed 's/,,*/,/g')
+    existing_ports=$(echo "$existing_ports" | sed 's/^[ ,]*//;s/[ ,]*$//')
+
+    # Update the config file with the remaining ports
+    sed -i "/ports = \[/c\ports = [ $existing_ports ]" /root/backhaul/config_$server_number.toml
     echo "Ports removed successfully from server $server_number."
 
     # Reload and restart the service
