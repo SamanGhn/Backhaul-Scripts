@@ -319,10 +319,15 @@ uninstall_backhaul() {
     # Stop and disable all backhaul services
     for service_file in /etc/systemd/system/backhaul_*.service; do
         if [ -f "$service_file" ]; then
-            sudo systemctl stop $(basename "$service_file")
-            sudo systemctl disable $(basename "$service_file")
+            service_name=$(basename "$service_file")
+            sudo systemctl stop $service_name
+            sudo systemctl disable $service_name
             sudo rm "$service_file"
             echo "Removed service file: $service_file"
+            
+            # Reload systemd and reset failed services after each service is removed
+            sudo systemctl daemon-reload
+            sudo systemctl reset-failed
         fi
     done
 
@@ -337,11 +342,13 @@ uninstall_backhaul() {
         echo "Removed /root/backhaul directory"
     fi
 
-    # Reload systemd to apply changes
+    # Reload systemd and reset failed services after all operations are done
     sudo systemctl daemon-reload
+    sudo systemctl reset-failed
 
     echo "Backhaul uninstalled successfully."
 }
+
 
 # Function to update backhaul
 update_backhaul() {
