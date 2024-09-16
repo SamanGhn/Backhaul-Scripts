@@ -257,25 +257,20 @@ add_ports() {
     done
 
     # Read the existing ports from the config file
-    existing_ports=$(grep -oP '(?<=ports = ).*' /root/backhaul/config_$server_number.toml)
+    existing_ports=$(grep -oP '(?<=ports = \[).*(?=\])' /root/backhaul/config_$server_number.toml)
 
     # Remove any trailing commas or spaces from the existing ports
     existing_ports=$(echo "$existing_ports" | sed 's/^[ ,]*//;s/[ ,]*$//')
 
-    # Remove the closing bracket ']' from the existing ports if present
-    existing_ports=$(echo "$existing_ports" | sed 's/]//g')
-
-    # Combine the existing ports with the new ones
-    all_ports=$(echo "$existing_ports,$(IFS=,; echo "${formatted_ports[*]}")")
-
-    # Remove extra commas (e.g., if there are multiple commas together)
-    all_ports=$(echo "$all_ports" | sed 's/,,*/,/g')
-
-    # Re-add the closing bracket
-    all_ports="$all_ports]"
+    # Combine the existing ports with the new ones (if existing ports are not empty)
+    if [ -n "$existing_ports" ]; then
+        all_ports="$existing_ports,$(IFS=,; echo "${formatted_ports[*]}")"
+    else
+        all_ports=$(IFS=,; echo "${formatted_ports[*]}")
+    fi
 
     # Update the config file with the merged ports
-    sed -i "/ports = /c\ports = $all_ports" /root/backhaul/config_$server_number.toml
+    sed -i "/ports = \[/c\ports = [$all_ports]" /root/backhaul/config_$server_number.toml
 
     echo "Ports added successfully to server $server_number."
 
@@ -283,6 +278,7 @@ add_ports() {
     sudo systemctl daemon-reload
     sudo systemctl restart backhaul_$server_number.service
 }
+
 
 
 # Function to remove ports
