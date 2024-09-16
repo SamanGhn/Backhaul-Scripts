@@ -236,4 +236,26 @@ while true; do
     echo "1) Install Backhaul"
     echo "2) Update Backhaul"
     echo "3) Uninstall Backhaul"
-   
+    echo "---------------------------------"
+
+    read -p "Please choose an option: " option
+
+    case $option in
+        0)
+            echo "Exiting..."
+            exit 0
+            ;;
+        1)
+            install_backhaul
+            ;;
+        2)
+            update_backhaul
+            ;;
+        3)
+            uninstall_backhaul
+            ;;
+        *)
+            echo "Invalid option, please try again."
+            ;;
+    esac
+done
