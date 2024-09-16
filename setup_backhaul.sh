@@ -258,9 +258,9 @@ add_ports() {
 
     ports_string=$(IFS=,; echo "${formatted_ports[*]}")
 
-    # Add new ports to the existing configuration
-    sed -i "/ports = \[/a $ports_string" /root/backhaul/config_$server_number.toml
-    echo "Ports added successfully to server $server_number."
+    # Add the new ports to the configuration file
+    sed -i "/ports = \[/ s/\]/, $ports_string\]/" /root/backhaul/config_$server_number.toml
+    echo "Ports added successfully for server $server_number."
 
     # Reload and restart the service
     sudo systemctl daemon-reload
@@ -272,18 +272,33 @@ remove_ports() {
     read -p "Enter the number of the server you want to remove ports from: " server_number
     read -p "Enter the ports to remove as a comma-separated list (e.g., 2025,2026): " remove_ports
 
+    # Convert the ports to remove into the appropriate format
     IFS=',' read -r -a remove_ports_array <<< "$remove_ports"
 
-    # Loop through the ports and remove them from the configuration file
     for port in "${remove_ports_array[@]}"; do
         sed -i "/\"$port=$port\"/d" /root/backhaul/config_$server_number.toml
     done
 
-    echo "Ports removed successfully from server $server_number."
+    echo "Ports removed successfully for server $server_number."
 
     # Reload and restart the service
     sudo systemctl daemon-reload
     sudo systemctl restart backhaul_$server_number.service
+}
+
+# Function to update backhaul
+update_backhaul() {
+    echo "Updating backhaul..."
+
+    # Stop and disable all backhaul services
+    sudo systemctl stop backhaul*.service
+    sudo systemctl disable backhaul*.service
+
+    # Remove the current installation
+    sudo rm -f /usr/bin/backhaul
+
+    # Install the latest version
+    install_backhaul
 }
 
 # Function to uninstall backhaul
@@ -291,68 +306,32 @@ uninstall_backhaul() {
     echo "Uninstalling backhaul..."
 
     # Stop and disable all backhaul services
-    for service_file in /etc/systemd/system/backhaul_*.service; do
-        if [ -f "$service_file" ]; then
-            sudo systemctl stop $(basename "$service_file")
-            sudo systemctl disable $(basename "$service_file")
-            sudo rm "$service_file"
-            echo "Removed service file: $service_file"
-        fi
-    done
+    sudo systemctl stop backhaul*.service
+    sudo systemctl disable backhaul*.service
 
-    # Remove backhaul binary and config files
-    if [ -f /usr/bin/backhaul ]; then
-        sudo rm /usr/bin/backhaul
-        echo "Removed /usr/bin/backhaul"
-    fi
-
-    if [ -d /root/backhaul ]; then
-        sudo rm -rf /root/backhaul
-        echo "Removed /root/backhaul directory"
-    fi
-
-    # Reload systemd to apply changes
-    sudo systemctl daemon-reload
+    # Remove backhaul binary and configuration files
+    sudo rm -f /usr/bin/backhaul
+    sudo rm -f /root/backhaul/config_*.toml
+    sudo rm -f /etc/systemd/system/backhaul_*.service
 
     echo "Backhaul uninstalled successfully."
 }
 
-# Function to update backhaul
-update_backhaul() {
-    echo "Updating backhaul..."
-
-    # Download the latest version and replace the existing binary
-    wget https://github.com/Musixal/Backhaul/releases/download/v0.2.2/backhaul_linux_amd64.tar.gz -O backhaul_linux_update.tar.gz
-    tar -xf backhaul_linux_update.tar.gz
-    rm backhaul_linux_update.tar.gz LICENSE README.md
-    chmod +x backhaul
-    sudo mv backhaul /usr/bin/backhaul
-
-    # Reload systemd
-    sudo systemctl daemon-reload
-
-    echo "Backhaul updated successfully."
-}
-
-# Main menu loop
+# Main menu
 while true; do
     echo "---------------------------------"
     echo "  Backhaul Management Menu"
     echo "---------------------------------"
-    echo "0) Exit"
     echo "1) Install Backhaul"
-    echo "2) Edit Backhaul"
+    echo "2) Edit Backhaul Configuration"
     echo "3) Update Backhaul"
     echo "4) Uninstall Backhaul"
+    echo "5) Exit"
     echo "---------------------------------"
 
-    read -p "Please choose an option: " option
+    read -p "Please choose an option: " choice
 
-    case $option in
-        0)
-            echo "Exiting..."
-            exit 0
-            ;;
+    case $choice in
         1)
             install_backhaul
             ;;
@@ -364,6 +343,9 @@ while true; do
             ;;
         4)
             uninstall_backhaul
+            ;;
+        5)
+            exit
             ;;
         *)
             echo "Invalid option, please try again."
