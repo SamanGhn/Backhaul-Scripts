@@ -270,7 +270,7 @@ add_ports() {
     fi
 
     # Update the config file with the merged ports
-    sed -i "/ports = \[/c\ports = [$all_ports]" /root/backhaul/config_$server_number.toml
+    sed -i "/ports = \[/c\ports = [$all_ports" /root/backhaul/config_$server_number.toml
 
     echo "Ports added successfully to server $server_number."
 
