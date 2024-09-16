@@ -258,8 +258,15 @@ add_ports() {
 
     ports_string=$(IFS=,; echo "${formatted_ports[*]}")
 
-    # Add the new ports to the configuration file
-    sed -i "/ports = \[/ s/\]/, $ports_string\]/" /root/backhaul/config_$server_number.toml
+    # Ensure that the 'ports' array exists and add new ports to it
+    if grep -q "ports = \[" /root/backhaul/config_$server_number.toml; then
+        # If ports array exists, insert new ports before closing bracket
+        sed -i "/ports = \[/ s/\]/, $ports_string\]/" /root/backhaul/config_$server_number.toml
+    else
+        # If ports array doesn't exist, create it
+        sed -i "/\[server\]/a ports = [$ports_string]" /root/backhaul/config_$server_number.toml
+    fi
+
     echo "Ports added successfully for server $server_number."
 
     # Reload and restart the service
@@ -272,9 +279,10 @@ remove_ports() {
     read -p "Enter the number of the server you want to remove ports from: " server_number
     read -p "Enter the ports to remove as a comma-separated list (e.g., 2025,2026): " remove_ports
 
-    # Convert the ports to remove into the appropriate format
+    # Convert the ports to remove into an array
     IFS=',' read -r -a remove_ports_array <<< "$remove_ports"
 
+    # Loop through each port to remove it from the config file
     for port in "${remove_ports_array[@]}"; do
         sed -i "/\"$port=$port\"/d" /root/backhaul/config_$server_number.toml
     done
@@ -286,52 +294,19 @@ remove_ports() {
     sudo systemctl restart backhaul_$server_number.service
 }
 
-# Function to update backhaul
-update_backhaul() {
-    echo "Updating backhaul..."
-
-    # Stop and disable all backhaul services
-    sudo systemctl stop backhaul*.service
-    sudo systemctl disable backhaul*.service
-
-    # Remove the current installation
-    sudo rm -f /usr/bin/backhaul
-
-    # Install the latest version
-    install_backhaul
-}
-
-# Function to uninstall backhaul
-uninstall_backhaul() {
-    echo "Uninstalling backhaul..."
-
-    # Stop and disable all backhaul services
-    sudo systemctl stop backhaul*.service
-    sudo systemctl disable backhaul*.service
-
-    # Remove backhaul binary and configuration files
-    sudo rm -f /usr/bin/backhaul
-    sudo rm -f /root/backhaul/config_*.toml
-    sudo rm -f /etc/systemd/system/backhaul_*.service
-
-    echo "Backhaul uninstalled successfully."
-}
-
 # Main menu
 while true; do
     echo "---------------------------------"
-    echo "  Backhaul Management Menu"
+    echo "  Backhaul Management Script"
     echo "---------------------------------"
     echo "1) Install Backhaul"
-    echo "2) Edit Backhaul Configuration"
-    echo "3) Update Backhaul"
-    echo "4) Uninstall Backhaul"
-    echo "5) Exit"
+    echo "2) Edit Backhaul"
+    echo "3) Exit"
     echo "---------------------------------"
 
-    read -p "Please choose an option: " choice
+    read -p "Please choose an option: " main_option
 
-    case $choice in
+    case $main_option in
         1)
             install_backhaul
             ;;
@@ -339,13 +314,7 @@ while true; do
             edit_backhaul
             ;;
         3)
-            update_backhaul
-            ;;
-        4)
-            uninstall_backhaul
-            ;;
-        5)
-            exit
+            exit 0
             ;;
         *)
             echo "Invalid option, please try again."
