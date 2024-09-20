@@ -8,7 +8,7 @@ install_backhaul() {
     mkdir -p backhaul
     cd backhaul
 
-    wget https://github.com/Musixal/Backhaul/releases/download/v0.1.1/backhaul_linux_amd64.tar.gz -O backhaul_linux.tar.gz
+    wget https://github.com/Musixal/Backhaul/releases/download/v0.3.2/backhaul_linux_amd64.tar.gz -O backhaul_linux.tar.gz
     tar -xf backhaul_linux.tar.gz
     rm backhaul_linux.tar.gz LICENSE README.md
     chmod +x backhaul
