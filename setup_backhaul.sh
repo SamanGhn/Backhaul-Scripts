@@ -20,21 +20,6 @@ install_backhaul() {
     # Get server location from the user
     read -p "Is this server located in Iran? (y/n): " location 
 
-    # Select transport type (tcpmux or ws)
-    echo "Please choose the transport type:"
-    echo "1) tcpmux"
-    echo "2) ws"
-    read -p "Enter your choice (1 or 2): " transport_choice
-
-    if [ "$transport_choice" == "1" ]; then
-        transport="tcp"
-    elif [ "$transport_choice" == "2" ]; then
-        transport="ws"
-    else
-        echo "Invalid transport type selected. Exiting."
-        exit 1
-    fi
-
     # If the server is located in Iran
     if [ "$location" == "y" ]; then
         echo "This server is located in Iran, applying settings for Iran..."
@@ -101,12 +86,13 @@ install_backhaul() {
             sudo tee /root/backhaul/config_$i.toml > /dev/null <<EOL
 [server]
 bind_addr = "0.0.0.0:$tunnelport"
-transport = "$transport"
+transport = "tcp"
 token = "$token"
-keepalive_period = 15
+keepalive_period = 20
 nodelay = false
 channel_size = 2048
-connection_pool = 7
+connection_pool = 8
+mux_session = $mux_session
 
 ports = [ 
 $ports_string
@@ -160,10 +146,11 @@ EOL
         sudo tee /root/backhaul/config_$server_index.toml > /dev/null <<EOL
 [client]
 remote_addr = "$ip_iran:$tunnelport"
-transport = "$transport"
+transport = "tcp"
 token = "$token"
-keepalive_period = 15
+keepalive_period = 20
 nodelay = false
+retry_interval = 1
 mux_session = $mux_session
 EOL
 
@@ -192,8 +179,193 @@ EOL
     fi
 }
 
-# Rest of the script (edit, uninstall, update functions) remains unchanged
-# Keeping edit, uninstall, and update functions intact as requested.
+# Function to edit backhaul configuration
+edit_backhaul() {
+    echo "---------------------------------"
+    echo "  Backhaul Edit Menu"
+    echo "---------------------------------"
+    echo "1) Edit Token"
+    echo "2) Edit Mux Session"
+    echo "3) Add Ports"
+    echo "4) Remove Ports"
+    echo "5) Return to Main Menu"
+    echo "---------------------------------"
+
+    read -p "Please choose an option: " edit_option
+
+    case $edit_option in
+        1)
+            edit_token
+            ;;
+        2)
+            edit_mux_session
+            ;;
+        3)
+            add_ports
+            ;;
+        4)
+            remove_ports
+            ;;
+        5)
+            return
+            ;;
+        *)
+            echo "Invalid option, returning to Main Menu."
+            ;;
+    esac
+}
+
+# Function to edit token
+edit_token() {
+    read -p "Enter the number of the server you want to edit the token for: " server_number
+    read -p "Enter the new token: " new_token
+
+    # Modify the token in the server configuration file
+    sed -i "s/token = .*/token = \"$new_token\"/" /root/backhaul/config_$server_number.toml
+    echo "Token updated successfully for server $server_number."
+
+    # Reload and restart the service
+    sudo systemctl daemon-reload
+    sudo systemctl restart backhaul_$server_number.service
+}
+
+# Function to edit mux_session
+edit_mux_session() {
+    read -p "Enter the number of the server you want to edit the mux_session for: " server_number
+    read -p "Enter the new mux_session value: " new_mux_session
+
+    # Modify the mux_session in the server configuration file
+    sed -i "s/mux_session = .*/mux_session = $new_mux_session/" /root/backhaul/config_$server_number.toml
+    echo "Mux session updated successfully for server $server_number."
+
+    # Reload and restart the service
+    sudo systemctl daemon-reload
+    sudo systemctl restart backhaul_$server_number.service
+}
+
+# Function to add ports
+add_ports() {
+    read -p "Enter the number of the server you want to add ports to: " server_number
+    read -p "Enter the new ports as a comma-separated list (e.g., 2025,2026): " new_ports
+
+    # Convert the new ports into the appropriate format
+    IFS=',' read -r -a new_ports_array <<< "$new_ports"
+    formatted_ports=()
+
+    for port in "${new_ports_array[@]}"; do
+        formatted_ports+=("\"$port=$port\"")
+    done
+
+    # Read the existing ports from the config file
+    existing_ports=$(grep -oP '(?<=ports = \[).*(?=\])' /root/backhaul/config_$server_number.toml)
+
+    # Remove any trailing commas or spaces from the existing ports
+    existing_ports=$(echo "$existing_ports" | sed 's/^[ ,]*//;s/[ ,]*$//')
+
+    # Combine the existing ports with the new ones (if existing ports are not empty)
+    if [ -n "$existing_ports" ]; then
+        all_ports="$existing_ports,$(IFS=,; echo "${formatted_ports[*]}")"
+    else
+        all_ports=$(IFS=,; echo "${formatted_ports[*]}")
+    fi
+
+    # Update the config file with the merged ports
+    sed -i "/ports = \[/c\ports = [${all_ports}," /root/backhaul/config_$server_number.toml
+
+    echo "Ports added successfully to server $server_number."
+
+    # Reload and restart the service
+    sudo systemctl daemon-reload
+    sudo systemctl restart backhaul_$server_number.service
+}
+
+
+
+# Function to remove ports
+remove_ports() {
+    read -p "Enter the number of the server you want to remove ports from: " server_number
+    read -p "Enter the ports to remove as a comma-separated list (e.g., 2025,2026): " remove_ports
+
+    IFS=',' read -r -a remove_ports_array <<< "$remove_ports"
+
+    # Read the existing ports from the config file
+    existing_ports=$(grep -oP '(?<=ports = \[)[^\]]*' /root/backhaul/config_$server_number.toml)
+
+    # Remove leading/trailing whitespace and commas from existing_ports
+    existing_ports=$(echo "$existing_ports" | sed 's/^[ ,]*//;s/[ ,]*$//')
+
+    # Remove specified ports from the existing ports
+    for port in "${remove_ports_array[@]}"; do
+        existing_ports=$(echo "$existing_ports" | sed "s/\"$port=$port\"//g")
+    done
+
+    # Remove extra commas and spaces
+    existing_ports=$(echo "$existing_ports" | sed 's/,,*/,/g')
+    existing_ports=$(echo "$existing_ports" | sed 's/^[ ,]*//;s/[ ,]*$//')
+
+    # Update the config file with the remaining ports
+    sed -i "/ports = \[/c\ports = [ $existing_ports ]" /root/backhaul/config_$server_number.toml
+    echo "Ports removed successfully from server $server_number."
+
+    # Reload and restart the service
+    sudo systemctl daemon-reload
+    sudo systemctl restart backhaul_$server_number.service
+}
+
+# Function to uninstall backhaul
+uninstall_backhaul() {
+    echo "Uninstalling backhaul..."
+
+    # Stop and disable all backhaul services
+    for service_file in /etc/systemd/system/backhaul_*.service; do
+        if [ -f "$service_file" ]; then
+            service_name=$(basename "$service_file")
+            sudo systemctl stop $service_name
+            sudo systemctl disable $service_name
+            sudo rm "$service_file"
+            echo "Removed service file: $service_file"
+            
+            # Reload systemd and reset failed services after each service is removed
+            sudo systemctl daemon-reload
+            sudo systemctl reset-failed
+        fi
+    done
+
+    # Remove backhaul binary and config files
+    if [ -f /usr/bin/backhaul ]; then
+        sudo rm /usr/bin/backhaul
+        echo "Removed /usr/bin/backhaul"
+    fi
+
+    if [ -d /root/backhaul ]; then
+        sudo rm -rf /root/backhaul
+        echo "Removed /root/backhaul directory"
+    fi
+
+    # Reload systemd and reset failed services after all operations are done
+    sudo systemctl daemon-reload
+    sudo systemctl reset-failed
+
+    echo "Backhaul uninstalled successfully."
+}
+
+
+# Function to update backhaul
+update_backhaul() {
+    echo "Updating backhaul..."
+
+    # Download the latest version and replace the existing binary
+    wget https://github.com/Musixal/Backhaul/releases/download/v0.2.2/backhaul_linux_amd64.tar.gz -O backhaul_linux_update.tar.gz
+    tar -xf backhaul_linux_update.tar.gz
+    rm backhaul_linux_update.tar.gz LICENSE README.md
+    chmod +x backhaul
+    sudo mv backhaul /usr/bin/backhaul
+
+    # Reload systemd
+    sudo systemctl daemon-reload
+
+    echo "Backhaul updated successfully."
+}
 
 # Main menu loop
 while true; do
